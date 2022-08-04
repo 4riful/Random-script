@@ -30,7 +30,7 @@ printf "\n\n[#]${blue}Using Gau for getting urls for${end}${red} $1 \n" | pv -qL
 cat "$1" | gau | tee gau.txt >/dev/null 2>&1;
 printf "\n\n[#]${blue}URLS fetched using gau & appended in ${red}${bold}$urlname.txt${end} \n\n" |  pv -qL $[15+(-2 + RANDOM%5)]
 # Sorting Out them 
-sort -u $urlname.txt gau.txt > fetchedurls.txt >/dev/null 2>&1;
+sort -u $urlname.txt gau.txt > fetchedurls.txt ;
 
 
 #filteration
