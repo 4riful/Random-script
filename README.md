@@ -1,2 +1,1 @@
-# Random-script
-# Random-scriptfrompc 
+# :)
