@@ -16,7 +16,7 @@ function send2td {
 		fi
 		if grep -q '^ discord\|^discord\|^    discord' $CONFIG ; then
 			discord_url=$(cat ${CONFIG} | grep '^ discord_webhook_url\|^discord_webhook_url\|^    discord_webhook_url' | xargs | cut -d' ' -f2)
-            curl -v -i -H "Accept: application/json" -H "Content-Type: multipart/form-data" -X POST -F 'payload_json={"username": "0xettaByte", "content": "'"Sent from ${hname}"'"}' \
+            curl -v -i -H "Accept: application/json" -H "Content-Type: multipart/form-data" -X POST -F 'payload_json={"username": "0xxettaByte", "content": "'"Sent from ${hname}"'"}' \
 			-F file1=@${1} $discord_url &>/dev/null
 		fi
 	
