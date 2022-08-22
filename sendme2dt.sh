@@ -11,8 +11,7 @@ function send2td {
 			telegram_chat_id=$(cat ${CONFIG} | grep '^    telegram_chat_id\|^telegram_chat_id\|^    telegram_chat_id' | xargs | cut -d' ' -f2)
 			telegram_key=$(cat ${CONFIG} | grep '^    telegram_api_key\|^telegram_api_key\|^    telegram_apikey' | xargs | cut -d' ' -f2 )
 			
-			curl -s -X POST https://api.telegram.org/bot$telegram_key/sendMessage -d chat_id=${telegram_chat_id} -d text="Sent from $hname" &>/dev/null &&
-			curl -F document=@${1} "https://api.telegram.org/bot${telegram_key}/sendDocument?chat_id=${telegram_chat_id}" &>/dev/null;
+			curl -s -X POST https://api.telegram.org/bot$telegram_key/sendMessage -d chat_id=${telegram_chat_id} -d text="Sent from $hname" &>/dev/null && curl -F document=@${1} "https://api.telegram.org/bot${telegram_key}/sendDocument?chat_id=${telegram_chat_id}" &>/dev/null;
 		fi
 		if grep -q '^ discord\|^discord\|^    discord' $CONFIG ; then
 			discord_url=$(cat ${CONFIG} | grep '^ discord_webhook_url\|^discord_webhook_url\|^    discord_webhook_url' | xargs | cut -d' ' -f2)
