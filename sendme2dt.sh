@@ -21,6 +21,10 @@ function send2td {
 		fi
 	
 }
-send2td $1
-
-echo -e '\nSent Bro :D'
+if [ -z "$1"]
+then
+  echo "No file suplied to send "
+else
+  send2td $1
+  echo -e '\nSent Bro :D'
+fi
