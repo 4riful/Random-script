@@ -1,4 +1,4 @@
-#! /usr/bin/bash
+#!/bin/bash
 #An script for sending Result or file to Discord OR Telegram
 # Note This script required a Config file where Discord|Telegram's api are included or You can simply install notify tool .
 
