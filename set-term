@@ -3,11 +3,11 @@
 # -------------------------------
 # - Installs Zsh + Oh My Zsh + plugins (autosuggestions, syntax-highlighting)
 # - Prompts for a minimal-theme choice
-# - Installs VS Code Server (code-server) with password authentication
+# - Optionally installs VS Code Server (code-server) with password authentication
+#   and sets up a systemd service to keep it running
 # - Sets up UFW to allow SSH and code-server ports
 # - Switches the default shell to Zsh
 
-# Exit on error, but allow unset vars
 set -eo pipefail
 
 # Ensure script is run with superuser privileges
@@ -16,12 +16,26 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# Helper: prompt with default
+# Prompt with default
 default_prompt() {
   local prompt_msg="$1"
   local default_val="$2"
   read -p "$prompt_msg [$default_val]: " input
   echo "${input:-$default_val}"
+}
+
+yes_no_prompt() {
+  local prompt_msg="$1"
+  local default_val="$2"
+  while true; do
+    read -p "$prompt_msg (y/n) [$default_val]: " yn
+    yn="${yn:-$default_val}"
+    case "$yn" in
+      [Yy]*) echo "yes"; return;;
+      [Nn]*) echo "no"; return;;
+      *) echo "Please answer y or n.";;
+    esac
+  done
 }
 
 # 1) Install prerequisites
@@ -71,21 +85,17 @@ fi
 
 echo "==> Customizing .zshrc with minimal theme and plugins"
 theme=$(default_prompt "Choose a minimal Oh My Zsh theme" "minimal")
-# Replace or append theme
 if grep -q '^ZSH_THEME=' "$ZSHRC"; then
   sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"$theme\"/" "$ZSHRC"
 else
   echo "ZSH_THEME=\"$theme\"" >> "$ZSHRC"
 fi
-# Enable desired plugins
 if grep -q '^plugins=' "$ZSHRC"; then
   sed -i "s/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/" "$ZSHRC"
 else
   echo "plugins=(git zsh-autosuggestions zsh-syntax-highlighting)" >> "$ZSHRC"
 fi
-
-# Ensure ssh-agent auto-start in .zshrc
-if ! grep -q 'ssh-agent' "$ZSHRC"; then
+if ! grep -q 'ssh-agent auto-load' "$ZSHRC"; then
   cat << 'EOF' >> "$ZSHRC"
 
 # SSH agent auto-load
@@ -96,34 +106,56 @@ ssh-add -l &>/dev/null || ssh-add ~/.ssh/id_ed25519
 EOF
 fi
 
-# 5) Install VS Code Server (code-server)
-echo "==> Installing VS Code Server (code-server)..."
-if ! command -v code-server >/dev/null; then
-  curl -fsSL https://code-server.dev/install.sh | sh
-else
-  echo "code-server already installed. Skipping."
-fi
-# Prompt for code-server password
-echo "Set up code-server authentication"
-read -rsp "Enter a password for code-server: " cs_password
+# 5) Optionally install code-server and systemd service
+if [[ "$(yes_no_prompt 'Install and configure VS Code Server (code-server)?' 'y')" == "yes" ]]; then
+  echo "==> Installing VS Code Server..."
+  if ! command -v code-server >/dev/null; then
+    curl -fsSL https://code-server.dev/install.sh | sh
+  else
+    echo "code-server already installed. Skipping."
+  fi
+  # Prompt for code-server password
+  echo "Set up code-server authentication"
+  read -rsp "Enter a password for code-server: " cs_password
 echo
-mkdir -p /root/.config/code-server
-cat > /root/.config/code-server/config.yaml <<EOF
+  mkdir -p /root/.config/code-server
+  cat > /root/.config/code-server/config.yaml <<EOF
 bind-addr: 0.0.0.0:8080
 auth: password
 password: $cs_password
 cert: false
 EOF
+  # Create systemd service
+  echo "==> Creating systemd service for code-server..."
+  cat > /etc/systemd/system/code-server.service <<EOF
+[Unit]
+Description=VS Code Server
+After=network.target
 
-# 6) Configure UFW to allow SSH and code-server
+[Service]
+Type=simple
+User=root
+Environment=PASSWORD=$cs_password
+ExecStart=/usr/bin/code-server --bind-addr 0.0.0.0:8080 --auth password
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now code-server.service
+  echo "code-server service started and enabled."
+fi
+
+# 6) Configure UFW
 echo "==> Configuring UFW firewall..."
 if command -v ufw >/dev/null; then
   ufw allow OpenSSH
   ufw allow 8080/tcp
   ufw --force enable
-  echo "UFW enabled and ports 22, 8080 allowed."
+  echo "UFW enabled: SSH and port 8080 allowed."
 else
-  echo "UFW not installed; please ensure ports 22 and 8080 are open."
+  echo "UFW not available; ensure ports 22 and 8080 are open."
 fi
 
 # 7) Change default shell to Zsh
@@ -133,7 +165,6 @@ chsh -s "$(which zsh)" root || true
 cat << 'EOF'
 
 Setup complete!
-- Re-open or log in for Zsh to take effect.
-- Access VS Code Server: http://<your-server-ip>:8080
-  and log in with the password you set.
+- Re-open or log in to start using Zsh with your chosen theme/plugins.
+- If installed, code-server is running as a systemd service on port 8080.
 EOF
